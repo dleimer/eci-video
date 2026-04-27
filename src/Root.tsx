@@ -11,7 +11,7 @@ export const RemotionRoot: React.FC = () => {
       <Composition
         id="ECIThermostat"
         component={ECIThermostat}
-        durationInFrames={432}
+        durationInFrames={848}
         fps={30}
         width={1080}
         height={1920}

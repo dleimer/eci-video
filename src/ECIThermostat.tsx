@@ -10,17 +10,18 @@ import {
 
 const ECI_GREEN = "#83C141";
 const ECI_ORANGE = "#F7941D";
-const BG = "#080D17";
-const SCREEN_BG = "#04090F";
+const BG = "#070C16";
 
-// Scene opacity: fade in at start, fade out at end
+// Thermostat image displayed at full canvas width
+const THERMO_DISP_W = 1080;
+const THERMO_DISP_H = Math.round(1080 * (1013 / 1320)); // 829px
+
 const sceneOp = (frame: number, s: number, e: number, fade = 14): number =>
   interpolate(frame, [s, s + fade, e - fade, e], [0, 1, 1, 0], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
 
-// Slide-up entrance with spring
 const useSlideUp = (frame: number, fps: number, delay: number) => {
   const s = spring({
     frame: frame - delay,
@@ -37,305 +38,139 @@ const useSlideUp = (frame: number, fps: number, delay: number) => {
   };
 };
 
-// Digital thermostat display
-type ThermostatProps = {
-  temp: number;
-  mode: string;
-  statusColor: string;
-  statusLabel: string;
-  frame: number;
-};
-
-const ThermostatDisplay: React.FC<ThermostatProps> = ({
-  temp,
-  mode,
-  statusColor,
-  statusLabel,
-  frame,
-}) => {
-  const pulse = Math.sin(frame * 0.14) * 0.35 + 0.65;
-
-  return (
-    <div
-      style={{
-        width: 680,
-        backgroundColor: "#181C27",
-        borderRadius: 44,
-        boxShadow: "0 28px 70px rgba(0,0,0,0.75), 0 0 0 1.5px #252935",
-        padding: "26px 26px 22px",
-        display: "flex",
-        flexDirection: "column",
-        gap: 20,
-      }}
-    >
-      {/* Screen */}
-      <div
-        style={{
-          backgroundColor: SCREEN_BG,
-          borderRadius: 24,
-          padding: "30px 20px 22px",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          position: "relative",
-          border: "1px solid #0D1525",
-          overflow: "hidden",
-        }}
-      >
-        {/* Screen inner glow */}
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            background: `radial-gradient(ellipse 60% 50% at 50% 30%, #0C1E38 0%, transparent 70%)`,
-            pointerEvents: "none",
-          }}
-        />
-
-        {/* Mode label */}
-        <div
-          style={{
-            fontSize: 19,
-            fontWeight: 700,
-            letterSpacing: 5,
-            color: ECI_GREEN,
-            fontFamily: "monospace",
-            marginBottom: 14,
-          }}
-        >
-          {mode}
-        </div>
-
-        {/* Temperature */}
-        <div
-          style={{
-            fontSize: 136,
-            fontWeight: 900,
-            color: "#FFFFFF",
-            lineHeight: 1,
-            fontFamily: "'Arial Black', Arial, sans-serif",
-            textShadow: `0 0 60px ${ECI_GREEN}44`,
-          }}
-        >
-          {temp}°
-        </div>
-
-        <div
-          style={{
-            fontSize: 22,
-            color: "#4A5A78",
-            letterSpacing: 3,
-            fontFamily: "'Arial', sans-serif",
-            marginTop: 8,
-          }}
-        >
-          FAHRENHEIT
-        </div>
-
-        {/* Status indicator */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            marginTop: 18,
-            opacity: pulse,
-          }}
-        >
-          <div
-            style={{
-              width: 9,
-              height: 9,
-              borderRadius: "50%",
-              backgroundColor: statusColor,
-              boxShadow: `0 0 8px ${statusColor}`,
-            }}
-          />
-          <div
-            style={{
-              fontSize: 16,
-              color: statusColor,
-              fontFamily: "monospace",
-              letterSpacing: 3,
-              fontWeight: 700,
-            }}
-          >
-            {statusLabel}
-          </div>
-        </div>
-      </div>
-
-      {/* Controls */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 20,
-        }}
-      >
-        <div
-          style={{
-            width: 62,
-            height: 62,
-            borderRadius: "50%",
-            backgroundColor: "#22252F",
-            border: "2px solid #32363F",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "#7A8899",
-            fontSize: 28,
-            fontWeight: 700,
-          }}
-        >
-          −
-        </div>
-        <div
-          style={{
-            paddingInline: 30,
-            height: 62,
-            borderRadius: 31,
-            backgroundColor: ECI_GREEN,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "#fff",
-            fontSize: 15,
-            fontWeight: 700,
-            letterSpacing: 3,
-            fontFamily: "monospace",
-          }}
-        >
-          SCHEDULE
-        </div>
-        <div
-          style={{
-            width: 62,
-            height: 62,
-            borderRadius: "50%",
-            backgroundColor: "#22252F",
-            border: "2px solid #32363F",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "#7A8899",
-            fontSize: 28,
-            fontWeight: 700,
-          }}
-        >
-          +
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// 24-hour schedule zones
-const SCHEDULE_ZONES = [
-  { label: "SLEEP", temp: "65°", pct: 0.25, color: "#1A2E5A", bright: "#2244AA" },
-  { label: "HOME",  temp: "70°", pct: 0.09, color: "#1A4228", bright: "#2A7040" },
-  { label: "AWAY",  temp: "62°", pct: 0.41, color: "#3D2610", bright: "#7A4A18" },
-  { label: "HOME",  temp: "70°", pct: 0.17, color: "#1A4228", bright: "#2A7040" },
-  { label: "SLEEP", temp: "65°", pct: 0.08, color: "#1A2E5A", bright: "#2244AA" },
-];
+// ── Scene frame ranges ──────────────────────────────────────────────────────
+// S1 Intro:          0 – 88
+// S2 Hero:          74 – 200
+// Thermostat image: 74 – 665 (visible throughout S2–S5)
+// S3 Morning Away: 184 – 358
+// S4 Pre-Arrival:  342 – 516
+// S5 Sleep:        500 – 665
+// S6 Savings:      649 – 778
+// S7 CTA:          762 – 848
 
 export const ECIThermostat: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps, width, height } = useVideoConfig();
 
-  // ─── Scene opacities ──────────────────────────────────────────────────────
-  const s1Op = sceneOp(frame, 0, 82);
-  const s2Op = sceneOp(frame, 68, 218);
-  const s2aOp = sceneOp(frame, 68, 150, 12);
-  const s2bOp = sceneOp(frame, 134, 218, 12);
-  const s3Op = sceneOp(frame, 200, 318);
-  const s4Op = sceneOp(frame, 298, 390);
-  const s5Op = sceneOp(frame, 372, 432);
+  // ── Global thermostat image opacity + subtle Ken Burns ─────────────────
+  const thermoOp = sceneOp(frame, 74, 665, 18);
+  const thermoScale = interpolate(frame, [74, 665], [1.0, 1.06], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
 
-  // ─── Scene 1: Intro ───────────────────────────────────────────────────────
+  // ── Screen temperature overlay ─────────────────────────────────────────
+  // Overlaid on the house/temp area of the thermostat screen
+  const scrOvOp = sceneOp(frame, 200, 656, 16);
+
+  // Temperature shown on screen changes with each scenario
+  const scrTemp = Math.round(
+    interpolate(
+      frame,
+      [200, 245, 342, 406, 500, 562],
+      [78, 78, 78, 72, 72, 68],
+      { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
+    )
+  );
+  const scrColor =
+    frame < 342 ? "#F59E0B" : frame < 500 ? ECI_GREEN : "#818CF8";
+  const scrLabel =
+    frame < 342 ? "AWAY MODE" : frame < 500 ? "HOME MODE" : "SLEEP MODE";
+
+  // ── Scene 1: Intro ──────────────────────────────────────────────────────
+  const s1Op = sceneOp(frame, 0, 88);
   const logoSpring = spring({
     frame: frame - 8,
     fps,
     config: { damping: 16, stiffness: 210 },
     durationInFrames: 30,
   });
-  const logoScale = interpolate(logoSpring, [0, 1], [0.55, 1.0]);
-  const logoOp = interpolate(logoSpring, [0, 0.25], [0, 1], {
+  const s1LogoScale = interpolate(logoSpring, [0, 1], [0.55, 1.0]);
+  const s1LogoOp = interpolate(logoSpring, [0, 0.25], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
-  const s1Headline = useSlideUp(frame, fps, 26);
-  const s1Sub = useSlideUp(frame, fps, 42);
+  const s1H1 = useSlideUp(frame, fps, 26);
+  const s1H2 = useSlideUp(frame, fps, 40);
 
-  // ─── Scene 2A: Manual thermostat ──────────────────────────────────────────
-  const s2aLabel = useSlideUp(frame, fps, 74);
-  const s2aDesc = useSlideUp(frame, fps, 88);
+  // ── Scene 2: Hero ───────────────────────────────────────────────────────
+  const s2Op = sceneOp(frame, 74, 200);
+  const s2Title = useSlideUp(frame, fps, 90);
+  const s2Sub = useSlideUp(frame, fps, 106);
 
-  // ─── Scene 2B: Smart thermostat ───────────────────────────────────────────
-  const s2bLabel = useSlideUp(frame, fps, 140);
-  const s2bDesc = useSlideUp(frame, fps, 155);
-
-  // Animate set-point dropping from 72° → 65° (AWAY mode kicks in)
-  const smartTemp = Math.round(
-    interpolate(frame, [148, 174], [72, 65], {
+  // ── Scene 3: Morning — leaving for work (summer) ────────────────────────
+  const s3Op = sceneOp(frame, 184, 358);
+  const s3Head = useSlideUp(frame, fps, 200);
+  const s3Temp = useSlideUp(frame, fps, 218);
+  const s3Desc = useSlideUp(frame, fps, 236);
+  // Temperature animates: 72° (home) → 78° (away)
+  const s3TempVal = Math.round(
+    interpolate(frame, [220, 248], [72, 78], {
       extrapolateLeft: "clamp",
       extrapolateRight: "clamp",
     })
   );
 
-  // ─── Scene 3: Schedule ────────────────────────────────────────────────────
-  const SCHED_START = 216;
-  const barWipe = interpolate(frame, [SCHED_START, SCHED_START + 44], [0, 1], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
-  const s3Title = useSlideUp(frame, fps, 204);
-  const s3Sub = useSlideUp(frame, fps, SCHED_START + 60);
-  const zoneOps = SCHEDULE_ZONES.map((_, i) =>
-    interpolate(frame, [SCHED_START + 42 + i * 12, SCHED_START + 58 + i * 12], [0, 1], {
+  // ── Scene 4: Pre-arrival — AC kicks on before you're home ───────────────
+  const s4Op = sceneOp(frame, 342, 516);
+  const s4Head = useSlideUp(frame, fps, 358);
+  const s4Temp = useSlideUp(frame, fps, 376);
+  const s4Desc = useSlideUp(frame, fps, 394);
+  // Temperature animates: 78° (away) → 72° (pre-arrival)
+  const s4TempVal = Math.round(
+    interpolate(frame, [378, 406], [78, 72], {
       extrapolateLeft: "clamp",
       extrapolateRight: "clamp",
     })
   );
 
-  // ─── Scene 4: Savings ─────────────────────────────────────────────────────
-  const SAV_START = 314;
-  const s4Title = useSlideUp(frame, fps, 302);
+  // ── Scene 5: Sleep mode ─────────────────────────────────────────────────
+  const s5Op = sceneOp(frame, 500, 665);
+  const s5Head = useSlideUp(frame, fps, 516);
+  const s5Temp = useSlideUp(frame, fps, 534);
+  const s5Desc = useSlideUp(frame, fps, 552);
+  // Temperature animates: 72° → 68° (sleep)
+  const s5TempVal = Math.round(
+    interpolate(frame, [538, 566], [72, 68], {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    })
+  );
 
-  // Bar fill: 0 → 1 over 60 frames
-  const barFill = interpolate(frame, [SAV_START, SAV_START + 60], [0, 1], {
+  // ── Scene 6: Savings ────────────────────────────────────────────────────
+  const s6Op = sceneOp(frame, 649, 778);
+  const SAV_START = 666;
+  const s6Title = useSlideUp(frame, fps, 653);
+  const barFill = interpolate(frame, [SAV_START, SAV_START + 62], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
-
-  // Counter: 0 → 10 matching bar fill
-  const pctCount = interpolate(frame, [SAV_START, SAV_START + 62], [0, 10], {
+  const pctCount = interpolate(frame, [SAV_START, SAV_START + 64], [0, 10], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
+  const s6Badge = useSlideUp(frame, fps, SAV_START + 60);
+  const s6Tag = useSlideUp(frame, fps, SAV_START + 75);
 
-  const s4Savings = useSlideUp(frame, fps, SAV_START + 58);
-  const s4Tagline = useSlideUp(frame, fps, SAV_START + 72);
-
-  // ─── Scene 5: CTA ─────────────────────────────────────────────────────────
-  const s5LogoSpring = spring({
-    frame: frame - 378,
+  // ── Scene 7: CTA ────────────────────────────────────────────────────────
+  const s7Op = sceneOp(frame, 762, 848);
+  const s7LogoSpring = spring({
+    frame: frame - 768,
     fps,
     config: { damping: 15, stiffness: 210 },
     durationInFrames: 28,
   });
-  const s5LogoScale = interpolate(s5LogoSpring, [0, 1], [0.5, 1.0]);
-  const s5LogoOp = interpolate(s5LogoSpring, [0, 0.3], [0, 1], {
+  const s7LogoScale = interpolate(s7LogoSpring, [0, 1], [0.5, 1.0]);
+  const s7LogoOp = interpolate(s7LogoSpring, [0, 0.3], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
-  const s5Cta = useSlideUp(frame, fps, 396);
-  const s5Phone = useSlideUp(frame, fps, 410);
+  const s7Cta = useSlideUp(frame, fps, 786);
+  const s7Phone = useSlideUp(frame, fps, 800);
 
-  // ─── Shared layout ────────────────────────────────────────────────────────
-  const BAR_H = 480;
-  const SCHED_W = 940;
+  // ── Shared helpers ───────────────────────────────────────────────────────
+  const CONTENT_TOP = THERMO_DISP_H - 60; // content card starts here
+  const BAR_H = 400;
 
   const sceneBase: React.CSSProperties = {
     position: "absolute",
@@ -344,6 +179,21 @@ export const ECIThermostat: React.FC = () => {
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
+  };
+
+  // Helper: scenario content card (below thermostat image)
+  const CardBase: React.CSSProperties = {
+    position: "absolute",
+    top: CONTENT_TOP,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingInline: 60,
+    gap: 22,
   };
 
   return (
@@ -357,16 +207,141 @@ export const ECIThermostat: React.FC = () => {
         fontFamily: "'Arial Black', Arial, sans-serif",
       }}
     >
-      {/* Global background glow */}
+      {/* Global dark bg gradient */}
       <div
         style={{
           position: "absolute",
           inset: 0,
-          background: `radial-gradient(ellipse 80% 50% at 50% 50%, #0C1726 0%, ${BG} 70%)`,
+          background: `radial-gradient(ellipse 80% 50% at 50% 30%, #0C1726 0%, ${BG} 70%)`,
         }}
       />
 
-      {/* ═══════════════ SCENE 1 — ECI Intro ═══════════════ */}
+      {/* ════════ THERMOSTAT IMAGE (S2–S5) ════════ */}
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: THERMO_DISP_W,
+          height: THERMO_DISP_H + 80,
+          opacity: thermoOp,
+          overflow: "hidden",
+        }}
+      >
+        <Img
+          src={staticFile("eci_thermostat.png")}
+          style={{
+            width: THERMO_DISP_W,
+            height: THERMO_DISP_H,
+            objectFit: "cover",
+            transform: `scale(${thermoScale})`,
+            transformOrigin: "center top",
+            display: "block",
+          }}
+        />
+
+        {/* Bottom gradient: image fades into BG */}
+        <div
+          style={{
+            position: "absolute",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: 280,
+            background: `linear-gradient(to bottom, transparent, ${BG})`,
+          }}
+        />
+
+        {/* Screen temperature overlay (on the house/temp area of the display) */}
+        {/* House icon area is approx x:510-900, y:150-490 in the 1080×829 display */}
+        <div
+          style={{
+            position: "absolute",
+            left: 510,
+            top: 150,
+            width: 400,
+            height: 360,
+            backgroundColor: "rgba(12, 38, 72, 0.88)",
+            borderRadius: 16,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            opacity: scrOvOp,
+            gap: 8,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 14,
+              color: scrColor,
+              fontWeight: 700,
+              letterSpacing: 4,
+              fontFamily: "monospace",
+            }}
+          >
+            {scrLabel}
+          </div>
+          <div
+            style={{
+              fontSize: 86,
+              fontWeight: 900,
+              color: "#FFFFFF",
+              lineHeight: 1,
+              textShadow: `0 0 40px ${scrColor}88`,
+            }}
+          >
+            {scrTemp}°
+          </div>
+          <div style={{ fontSize: 16, color: "#6A8AAA", letterSpacing: 2 }}>
+            FAHRENHEIT
+          </div>
+        </div>
+
+        {/* ECI brand watermark on thermostat */}
+        <div
+          style={{
+            position: "absolute",
+            top: 18,
+            left: 18,
+            opacity: 0.9,
+          }}
+        >
+          <Img
+            src={staticFile("eci_logo.png")}
+            style={{ width: 100, height: "auto" }}
+          />
+        </div>
+
+        {/* "ECI SMART THERMOSTAT" label strip */}
+        <div
+          style={{
+            position: "absolute",
+            bottom: 90,
+            left: 0,
+            right: 0,
+            display: "flex",
+            justifyContent: "center",
+          }}
+        >
+          <div
+            style={{
+              paddingInline: 28,
+              paddingBlock: 10,
+              backgroundColor: `${ECI_GREEN}DD`,
+              borderRadius: 24,
+              fontSize: 20,
+              fontWeight: 700,
+              color: "#FFFFFF",
+              letterSpacing: "3px",
+            }}
+          >
+            ECI SMART THERMOSTAT
+          </div>
+        </div>
+      </div>
+
+      {/* ════════ SCENE 1 — ECI Intro ════════ */}
       <div style={{ ...sceneBase, opacity: s1Op, gap: 40 }}>
         <div
           style={{
@@ -375,58 +350,32 @@ export const ECIThermostat: React.FC = () => {
             background: `radial-gradient(ellipse 65% 45% at 50% 48%, ${ECI_GREEN}20 0%, transparent 68%)`,
           }}
         />
-
-        {/* Logo */}
-        <div
-          style={{
-            opacity: logoOp,
-            transform: `scale(${logoScale})`,
-          }}
-        >
+        <div style={{ opacity: s1LogoOp, transform: `scale(${s1LogoScale})` }}>
           <Img
             src={staticFile("eci_logo.png")}
             style={{ width: 320, height: "auto" }}
           />
         </div>
-
-        {/* Headline */}
         <div
           style={{
-            opacity: s1Headline.opacity,
-            transform: `translateY(${s1Headline.y}px)`,
+            opacity: s1H1.opacity,
+            transform: `translateY(${s1H1.y}px)`,
             textAlign: "center",
             paddingInline: 70,
           }}
         >
-          <div
-            style={{
-              fontSize: 58,
-              fontWeight: 900,
-              color: "#FFFFFF",
-              lineHeight: 1.1,
-              letterSpacing: "0px",
-            }}
-          >
+          <div style={{ fontSize: 58, fontWeight: 900, color: "#FFF", lineHeight: 1.1 }}>
             PROGRAMMABLE
           </div>
-          <div
-            style={{
-              fontSize: 58,
-              fontWeight: 900,
-              color: ECI_GREEN,
-              lineHeight: 1.1,
-            }}
-          >
+          <div style={{ fontSize: 58, fontWeight: 900, color: ECI_GREEN, lineHeight: 1.1 }}>
             THERMOSTATS
           </div>
         </div>
-
-        {/* Subtitle */}
         <div
           style={{
-            opacity: s1Sub.opacity,
-            transform: `translateY(${s1Sub.y}px)`,
-            fontSize: 30,
+            opacity: s1H2.opacity,
+            transform: `translateY(${s1H2.y}px)`,
+            fontSize: 28,
             color: "#8899BB",
             fontWeight: 700,
             letterSpacing: "3px",
@@ -437,290 +386,353 @@ export const ECIThermostat: React.FC = () => {
         </div>
       </div>
 
-      {/* ═══════════════ SCENE 2A — Manual Thermostat ═══════════════ */}
+      {/* ════════ SCENE 2 — Thermostat Hero ════════ */}
       <div
         style={{
-          ...sceneBase,
-          opacity: s2Op * s2aOp,
-          gap: 28,
+          ...CardBase,
+          opacity: s2Op,
+          justifyContent: "flex-start",
+          paddingTop: 40,
         }}
       >
         <div
           style={{
-            opacity: s2aLabel.opacity,
-            transform: `translateY(${s2aLabel.y}px)`,
+            opacity: s2Title.opacity,
+            transform: `translateY(${s2Title.y}px)`,
+            textAlign: "center",
+          }}
+        >
+          <div style={{ fontSize: 50, fontWeight: 900, color: "#FFF", lineHeight: 1.1 }}>
+            YOUR HOME,
+          </div>
+          <div style={{ fontSize: 50, fontWeight: 900, color: ECI_GREEN, lineHeight: 1.1 }}>
+            ALWAYS COMFORTABLE.
+          </div>
+        </div>
+        <div
+          style={{
+            opacity: s2Sub.opacity,
+            transform: `translateY(${s2Sub.y}px)`,
+            fontSize: 28,
+            color: "#7A8899",
+            textAlign: "center",
+            lineHeight: 1.55,
+          }}
+        >
+          Set your schedule once. Your ECI thermostat does the rest — automatically.
+        </div>
+      </div>
+
+      {/* ════════ SCENE 3 — Morning: Leaving for work ════════ */}
+      <div style={{ ...CardBase, opacity: s3Op, gap: 20 }}>
+        {/* Time + context */}
+        <div
+          style={{
+            opacity: s3Head.opacity,
+            transform: `translateY(${s3Head.y}px)`,
             textAlign: "center",
           }}
         >
           <div
             style={{
-              fontSize: 24,
-              color: "#EE5555",
+              fontSize: 22,
+              color: "#8899BB",
+              letterSpacing: "4px",
+              textTransform: "uppercase",
+              marginBottom: 8,
+            }}
+          >
+            ☀️ &nbsp; SUMMER MORNING
+          </div>
+          <div
+            style={{
+              fontSize: 58,
+              fontWeight: 900,
+              color: "#FFFFFF",
+              fontFamily: "monospace",
+              letterSpacing: "2px",
+            }}
+          >
+            8:00 AM
+          </div>
+          <div style={{ fontSize: 24, color: "#7A8899", marginTop: 8 }}>
+            You leave for work
+          </div>
+        </div>
+
+        {/* Temperature */}
+        <div
+          style={{
+            opacity: s3Temp.opacity,
+            transform: `translateY(${s3Temp.y}px)`,
+            textAlign: "center",
+          }}
+        >
+          <div
+            style={{
+              fontSize: 110,
+              fontWeight: 900,
+              color: "#F59E0B",
+              lineHeight: 1,
+              textShadow: "0 0 60px #F59E0B55",
+            }}
+          >
+            {s3TempVal}°F
+          </div>
+          <div
+            style={{
+              display: "inline-block",
+              paddingInline: 24,
+              paddingBlock: 8,
+              backgroundColor: "#F59E0B22",
+              border: "2px solid #F59E0B",
+              borderRadius: 10,
+              fontSize: 20,
+              color: "#F59E0B",
               fontWeight: 700,
-              letterSpacing: 3,
+              letterSpacing: "4px",
+              marginTop: 10,
             }}
           >
-            ✕ WITHOUT SMART SCHEDULING
+            AWAY MODE — AC OFF
           </div>
         </div>
 
-        <ThermostatDisplay
-          temp={72}
-          mode="MANUAL"
-          statusColor="#888888"
-          statusLabel="NO SCHEDULE"
-          frame={frame}
-        />
-
+        {/* Description */}
         <div
           style={{
-            opacity: s2aDesc.opacity,
-            transform: `translateY(${s2aDesc.y}px)`,
+            opacity: s3Desc.opacity,
+            transform: `translateY(${s3Desc.y}px)`,
+            fontSize: 26,
+            color: "#7A8899",
             textAlign: "center",
-            paddingInline: 80,
+            lineHeight: 1.6,
           }}
         >
-          <div style={{ fontSize: 28, color: "#7A8899", lineHeight: 1.55 }}>
-            Stays at 72° whether you're home,{"\n"}away, or sleeping.{"\n"}Wasted energy.
-          </div>
+          No need to manually adjust. Your ECI thermostat sets itself to 78° the moment you walk out the door.
         </div>
       </div>
 
-      {/* ═══════════════ SCENE 2B — Smart Thermostat ═══════════════ */}
-      <div
-        style={{
-          ...sceneBase,
-          opacity: s2Op * s2bOp,
-          gap: 28,
-        }}
-      >
+      {/* ════════ SCENE 4 — Pre-arrival: AC kicks on before you're home ════════ */}
+      <div style={{ ...CardBase, opacity: s4Op, gap: 20 }}>
         <div
           style={{
-            opacity: s2bLabel.opacity,
-            transform: `translateY(${s2bLabel.y}px)`,
+            opacity: s4Head.opacity,
+            transform: `translateY(${s4Head.y}px)`,
             textAlign: "center",
           }}
         >
           <div
             style={{
-              fontSize: 24,
-              color: ECI_GREEN,
-              fontWeight: 700,
-              letterSpacing: 3,
+              fontSize: 22,
+              color: "#8899BB",
+              letterSpacing: "4px",
+              textTransform: "uppercase",
+              marginBottom: 8,
             }}
           >
-            ✓ WITH PROGRAMMABLE THERMOSTAT
+            🏡 &nbsp; PRE-ARRIVAL
           </div>
-        </div>
-
-        <ThermostatDisplay
-          temp={smartTemp}
-          mode="PROGRAMMED"
-          statusColor={ECI_ORANGE}
-          statusLabel="AWAY MODE"
-          frame={frame}
-        />
-
-        <div
-          style={{
-            opacity: s2bDesc.opacity,
-            transform: `translateY(${s2bDesc.y}px)`,
-            textAlign: "center",
-            paddingInline: 80,
-          }}
-        >
-          <div style={{ fontSize: 28, color: "#7A8899", lineHeight: 1.55 }}>
-            Drops to 65° automatically{"\n"}when you leave or go to sleep.
-          </div>
-        </div>
-      </div>
-
-      {/* ═══════════════ SCENE 3 — Schedule ═══════════════ */}
-      <div style={{ ...sceneBase, opacity: s3Op, gap: 44 }}>
-        {/* Title */}
-        <div
-          style={{
-            opacity: s3Title.opacity,
-            transform: `translateY(${s3Title.y}px)`,
-            textAlign: "center",
-          }}
-        >
-          <div style={{ fontSize: 46, fontWeight: 900, color: "#FFFFFF", lineHeight: 1.1 }}>
-            YOUR SCHEDULE,
-          </div>
-          <div style={{ fontSize: 46, fontWeight: 900, color: ECI_GREEN, lineHeight: 1.1 }}>
-            AUTOMATICALLY
-          </div>
-        </div>
-
-        {/* Schedule bar */}
-        <div style={{ width: SCHED_W }}>
-          {/* Zone temp + label rows */}
-          <div style={{ display: "flex", width: SCHED_W, marginBottom: 14 }}>
-            {SCHEDULE_ZONES.map((zone, i) => (
-              <div
-                key={i}
-                style={{
-                  width: zone.pct * SCHED_W,
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  opacity: zoneOps[i],
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 24,
-                    fontWeight: 900,
-                    color: "#FFFFFF",
-                  }}
-                >
-                  {zone.temp}
-                </div>
-                <div
-                  style={{
-                    fontSize: 13,
-                    color: "#6A7A99",
-                    letterSpacing: 1,
-                    fontWeight: 700,
-                  }}
-                >
-                  {zone.label}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Colored timeline bar (wipes in) */}
           <div
             style={{
-              width: SCHED_W * barWipe,
-              height: 88,
-              borderRadius: 14,
-              overflow: "hidden",
-              display: "flex",
-              boxShadow: "0 6px 30px rgba(0,0,0,0.5)",
+              fontSize: 58,
+              fontWeight: 900,
+              color: "#FFFFFF",
+              fontFamily: "monospace",
+              letterSpacing: "2px",
             }}
           >
-            {SCHEDULE_ZONES.map((zone, i) => (
-              <div
-                key={i}
-                style={{
-                  flex: zone.pct,
-                  background: `linear-gradient(to bottom, ${zone.bright}, ${zone.color})`,
-                  borderRight:
-                    i < SCHEDULE_ZONES.length - 1
-                      ? "2px solid #080D17"
-                      : "none",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 11,
-                    color: "#FFFFFF99",
-                    fontWeight: 700,
-                    letterSpacing: 1,
-                  }}
-                >
-                  {zone.label}
-                </div>
-              </div>
-            ))}
+            5:00 PM
           </div>
+          <div style={{ fontSize: 24, color: "#7A8899", marginTop: 8 }}>
+            30 minutes before you arrive
+          </div>
+        </div>
 
-          {/* Time labels */}
+        <div
+          style={{
+            opacity: s4Temp.opacity,
+            transform: `translateY(${s4Temp.y}px)`,
+            textAlign: "center",
+          }}
+        >
           <div
             style={{
-              display: "flex",
-              justifyContent: "space-between",
-              paddingTop: 12,
-              opacity: zoneOps[3],
-            }}
-          >
-            {["12am", "6am", "12pm", "6pm", "10pm", "12am"].map((t) => (
-              <div key={t} style={{ fontSize: 18, color: "#445566" }}>
-                {t}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Subtitle */}
-        <div
-          style={{
-            opacity: s3Sub.opacity,
-            transform: `translateY(${s3Sub.y}px)`,
-            textAlign: "center",
-            paddingInline: 80,
-          }}
-        >
-          <div style={{ fontSize: 28, color: "#7A8899", lineHeight: 1.55 }}>
-            Set it once. Save energy every single day.
-          </div>
-        </div>
-      </div>
-
-      {/* ═══════════════ SCENE 4 — Savings ═══════════════ */}
-      <div style={{ ...sceneBase, opacity: s4Op, gap: 36 }}>
-        {/* Title */}
-        <div
-          style={{
-            opacity: s4Title.opacity,
-            transform: `translateY(${s4Title.y}px)`,
-            textAlign: "center",
-          }}
-        >
-          <div style={{ fontSize: 36, color: "#8899BB", fontWeight: 700, letterSpacing: "2px" }}>
-            SAVE UP TO
-          </div>
-        </div>
-
-        {/* Big percentage counter */}
-        <div style={{ textAlign: "center", lineHeight: 1 }}>
-          <span
-            style={{
-              fontSize: 160,
+              fontSize: 110,
               fontWeight: 900,
               color: ECI_GREEN,
+              lineHeight: 1,
+              textShadow: `0 0 60px ${ECI_GREEN}55`,
+            }}
+          >
+            {s4TempVal}°F
+          </div>
+          <div
+            style={{
+              display: "inline-block",
+              paddingInline: 24,
+              paddingBlock: 8,
+              backgroundColor: `${ECI_GREEN}22`,
+              border: `2px solid ${ECI_GREEN}`,
+              borderRadius: 10,
+              fontSize: 20,
+              color: ECI_GREEN,
+              fontWeight: 700,
+              letterSpacing: "4px",
+              marginTop: 10,
+            }}
+          >
+            HOME MODE — AC ON
+          </div>
+        </div>
+
+        <div
+          style={{
+            opacity: s4Desc.opacity,
+            transform: `translateY(${s4Desc.y}px)`,
+            fontSize: 26,
+            color: "#7A8899",
+            textAlign: "center",
+            lineHeight: 1.6,
+          }}
+        >
+          AC fires up automatically at 5 PM. Walk in at 5:30 to a perfectly cool 72° — without lifting a finger.
+        </div>
+      </div>
+
+      {/* ════════ SCENE 5 — Sleep mode ════════ */}
+      <div style={{ ...CardBase, opacity: s5Op, gap: 20 }}>
+        <div
+          style={{
+            opacity: s5Head.opacity,
+            transform: `translateY(${s5Head.y}px)`,
+            textAlign: "center",
+          }}
+        >
+          <div
+            style={{
+              fontSize: 22,
+              color: "#8899BB",
+              letterSpacing: "4px",
+              textTransform: "uppercase",
+              marginBottom: 8,
+            }}
+          >
+            🌙 &nbsp; SLEEP MODE
+          </div>
+          <div
+            style={{
+              fontSize: 58,
+              fontWeight: 900,
+              color: "#FFFFFF",
+              fontFamily: "monospace",
+              letterSpacing: "2px",
+            }}
+          >
+            10:30 PM
+          </div>
+          <div style={{ fontSize: 24, color: "#7A8899", marginTop: 8 }}>
+            You head to bed
+          </div>
+        </div>
+
+        <div
+          style={{
+            opacity: s5Temp.opacity,
+            transform: `translateY(${s5Temp.y}px)`,
+            textAlign: "center",
+          }}
+        >
+          <div
+            style={{
+              fontSize: 110,
+              fontWeight: 900,
+              color: "#818CF8",
+              lineHeight: 1,
+              textShadow: "0 0 60px #818CF855",
+            }}
+          >
+            {s5TempVal}°F
+          </div>
+          <div
+            style={{
+              display: "inline-block",
+              paddingInline: 24,
+              paddingBlock: 8,
+              backgroundColor: "#818CF822",
+              border: "2px solid #818CF8",
+              borderRadius: 10,
+              fontSize: 20,
+              color: "#818CF8",
+              fontWeight: 700,
+              letterSpacing: "4px",
+              marginTop: 10,
+            }}
+          >
+            SLEEP MODE
+          </div>
+        </div>
+
+        <div
+          style={{
+            opacity: s5Desc.opacity,
+            transform: `translateY(${s5Desc.y}px)`,
+            fontSize: 26,
+            color: "#7A8899",
+            textAlign: "center",
+            lineHeight: 1.6,
+          }}
+        >
+          Cools down to 68° automatically for better sleep — then warms back up before your alarm.
+        </div>
+      </div>
+
+      {/* ════════ SCENE 6 — Savings ════════ */}
+      <div style={{ ...sceneBase, opacity: s6Op, gap: 32 }}>
+        <div
+          style={{
+            opacity: s6Title.opacity,
+            transform: `translateY(${s6Title.y}px)`,
+            textAlign: "center",
+          }}
+        >
+          <div style={{ fontSize: 34, color: "#8899BB", fontWeight: 700, letterSpacing: "2px" }}>
+            ADD IT ALL UP AND
+          </div>
+          <div style={{ fontSize: 38, color: "#8899BB", fontWeight: 700, letterSpacing: "2px" }}>
+            SAVE UP TO
+          </div>
+          <div
+            style={{
+              fontSize: 148,
+              fontWeight: 900,
+              color: ECI_GREEN,
+              lineHeight: 1,
               textShadow: `0 0 60px ${ECI_GREEN}66`,
             }}
           >
-            {Math.round(pctCount)}
-          </span>
-          <span
+            {Math.round(pctCount)}%
+          </div>
+          <div
             style={{
-              fontSize: 80,
-              fontWeight: 900,
-              color: ECI_GREEN,
+              fontSize: 30,
+              color: "#FFFFFF",
+              fontWeight: 700,
+              letterSpacing: "4px",
             }}
           >
-            %
-          </span>
+            ANNUALLY
+          </div>
         </div>
 
-        <div
-          style={{
-            fontSize: 28,
-            color: "#FFFFFF",
-            fontWeight: 700,
-            letterSpacing: "4px",
-            textAlign: "center",
-          }}
-        >
-          ANNUALLY
-        </div>
-
-        {/* Savings progress bar */}
-        <div style={{ width: 840 }}>
+        {/* Green fill bar */}
+        <div style={{ width: 860 }}>
           <div
             style={{
               width: "100%",
-              height: 24,
+              height: 26,
               backgroundColor: "#1A2030",
-              borderRadius: 12,
+              borderRadius: 13,
               overflow: "hidden",
             }}
           >
@@ -729,9 +741,8 @@ export const ECIThermostat: React.FC = () => {
                 width: `${barFill * 100}%`,
                 height: "100%",
                 backgroundColor: ECI_GREEN,
-                borderRadius: 12,
-                boxShadow: `0 0 20px ${ECI_GREEN}88`,
-                transition: "none",
+                borderRadius: 13,
+                boxShadow: `0 0 24px ${ECI_GREEN}88`,
               }}
             />
           </div>
@@ -739,34 +750,22 @@ export const ECIThermostat: React.FC = () => {
             style={{
               display: "flex",
               justifyContent: "space-between",
-              marginTop: 8,
+              marginTop: 10,
             }}
           >
-            <div style={{ fontSize: 18, color: "#445566" }}>0%</div>
-            <div
-              style={{
-                fontSize: 18,
-                color: ECI_GREEN,
-                fontWeight: 700,
-              }}
-            >
-              10% savings goal
+            <div style={{ fontSize: 18, color: "#3A4A60" }}>0%</div>
+            <div style={{ fontSize: 18, color: ECI_GREEN, fontWeight: 700 }}>
+              10% annual savings
             </div>
           </div>
         </div>
 
-        {/* Bar chart — Manual vs Programmable */}
-        <div style={{ display: "flex", gap: 56, alignItems: "flex-end" }}>
-          {/* Manual */}
+        {/* Bar chart comparison */}
+        <div style={{ display: "flex", gap: 60, alignItems: "flex-end" }}>
           <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 10,
-            }}
+            style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}
           >
-            <div style={{ fontSize: 18, color: "#667788" }}>Manual</div>
+            <div style={{ fontSize: 18, color: "#667788" }}>Without</div>
             <div
               style={{
                 width: 120,
@@ -776,21 +775,12 @@ export const ECIThermostat: React.FC = () => {
               }}
             />
             <div style={{ fontSize: 20, color: "#667788", fontWeight: 700 }}>
-              $2,000
+              $2,000/yr
             </div>
           </div>
-
-          {/* Programmable */}
           <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 10,
-              position: "relative",
-            }}
+            style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}
           >
-            {/* Savings badge above bar */}
             <div
               style={{
                 fontSize: 16,
@@ -807,7 +797,7 @@ export const ECIThermostat: React.FC = () => {
             >
               $200 SAVED
             </div>
-            <div style={{ fontSize: 18, color: ECI_GREEN }}>Programmable</div>
+            <div style={{ fontSize: 18, color: ECI_GREEN }}>With ECI</div>
             <div
               style={{
                 width: 120,
@@ -818,51 +808,44 @@ export const ECIThermostat: React.FC = () => {
               }}
             />
             <div style={{ fontSize: 20, color: ECI_GREEN, fontWeight: 700 }}>
-              $1,800
+              $1,800/yr
             </div>
           </div>
         </div>
 
-        {/* Tagline */}
         <div
           style={{
-            opacity: s4Savings.opacity,
-            transform: `translateY(${s4Savings.y}px)`,
-          }}
-        >
-          <div
-            style={{
-              paddingInline: 36,
-              paddingBlock: 18,
-              backgroundColor: `${ECI_GREEN}18`,
-              border: `2px solid ${ECI_GREEN}`,
-              borderRadius: 18,
-              fontSize: 24,
-              color: ECI_GREEN,
-              fontWeight: 700,
-              letterSpacing: "1px",
-              textAlign: "center",
-            }}
-          >
-            On heating & cooling costs
-          </div>
-        </div>
-
-        <div
-          style={{
-            opacity: s4Tagline.opacity,
-            transform: `translateY(${s4Tagline.y}px)`,
-            fontSize: 22,
-            color: "#667788",
+            opacity: s6Badge.opacity,
+            transform: `translateY(${s6Badge.y}px)`,
+            paddingInline: 36,
+            paddingBlock: 18,
+            backgroundColor: `${ECI_GREEN}18`,
+            border: `2px solid ${ECI_GREEN}`,
+            borderRadius: 18,
+            fontSize: 24,
+            color: ECI_GREEN,
+            fontWeight: 700,
             textAlign: "center",
           }}
         >
-          Better than adjusting by hand. Every time.
+          On annual heating &amp; cooling costs
+        </div>
+
+        <div
+          style={{
+            opacity: s6Tag.opacity,
+            transform: `translateY(${s6Tag.y}px)`,
+            fontSize: 22,
+            color: "#55667A",
+            textAlign: "center",
+          }}
+        >
+          Better than adjusting by hand. Every single day.
         </div>
       </div>
 
-      {/* ═══════════════ SCENE 5 — CTA ═══════════════ */}
-      <div style={{ ...sceneBase, opacity: s5Op, gap: 36 }}>
+      {/* ════════ SCENE 7 — CTA ════════ */}
+      <div style={{ ...sceneBase, opacity: s7Op, gap: 36 }}>
         <div
           style={{
             position: "absolute",
@@ -870,32 +853,25 @@ export const ECIThermostat: React.FC = () => {
             background: `radial-gradient(ellipse 70% 55% at 50% 50%, ${ECI_GREEN}1A 0%, transparent 70%)`,
           }}
         />
-
-        <div
-          style={{
-            opacity: s5LogoOp,
-            transform: `scale(${s5LogoScale})`,
-          }}
-        >
+        <div style={{ opacity: s7LogoOp, transform: `scale(${s7LogoScale})` }}>
           <Img
             src={staticFile("eci_logo.png")}
             style={{ width: 280, height: "auto" }}
           />
         </div>
-
         <div
           style={{
-            opacity: s5Cta.opacity,
-            transform: `translateY(${s5Cta.y}px)`,
+            opacity: s7Cta.opacity,
+            transform: `translateY(${s7Cta.y}px)`,
             textAlign: "center",
           }}
         >
-          <div style={{ fontSize: 56, fontWeight: 900, color: "#FFFFFF", lineHeight: 1.1 }}>
+          <div style={{ fontSize: 56, fontWeight: 900, color: "#FFF", lineHeight: 1.1 }}>
             CALL US TODAY
           </div>
           <div
             style={{
-              fontSize: 36,
+              fontSize: 34,
               color: ECI_GREEN,
               fontWeight: 700,
               letterSpacing: "2px",
@@ -905,11 +881,10 @@ export const ECIThermostat: React.FC = () => {
             TO START SAVING!
           </div>
         </div>
-
         <div
           style={{
-            opacity: s5Phone.opacity,
-            transform: `translateY(${s5Phone.y}px)`,
+            opacity: s7Phone.opacity,
+            transform: `translateY(${s7Phone.y}px)`,
           }}
         >
           <div
@@ -927,6 +902,17 @@ export const ECIThermostat: React.FC = () => {
           >
             215-245-3200
           </div>
+        </div>
+        <div
+          style={{
+            opacity: s7Phone.opacity,
+            fontSize: 22,
+            color: ECI_ORANGE,
+            fontWeight: 700,
+            letterSpacing: "1px",
+          }}
+        >
+          Ask about our programmable thermostat installation
         </div>
       </div>
     </div>
