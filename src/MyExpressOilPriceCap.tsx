@@ -157,7 +157,7 @@ export const MyExpressOilPriceCap: React.FC = () => {
   const benefitSlides = BENEFITS.map((_, i) => useSlideUp(frame, fps, 520 + i * 22));
 
   // ── Scene 6: CTA (664–750) ────────────────────────────────────────────
-  const s6Op = sceneOp(frame, 664, 750);
+  const s6Op = sceneOp(frame, 664, 780);
   const s6LogoSpring = spring({
     frame: frame - 670,
     fps,

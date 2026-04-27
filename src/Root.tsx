@@ -13,7 +13,7 @@ export const RemotionRoot: React.FC = () => {
       <Composition
         id="MyExpressOilPriceCap"
         component={MyExpressOilPriceCap}
-        durationInFrames={750}
+        durationInFrames={780}
         fps={30}
         width={1080}
         height={1080}
