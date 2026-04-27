@@ -12,10 +12,6 @@ const ECI_GREEN = "#83C141";
 const ECI_ORANGE = "#F7941D";
 const BG = "#070C16";
 
-// Thermostat image displayed at full canvas width
-const THERMO_DISP_W = 1080;
-const THERMO_DISP_H = Math.round(1080 * (1013 / 1320)); // 829px
-
 const sceneOp = (frame: number, s: number, e: number, fade = 14): number =>
   interpolate(frame, [s, s + fade, e - fade, e], [0, 1, 1, 0], {
     extrapolateLeft: "clamp",
@@ -38,46 +34,401 @@ const useSlideUp = (frame: number, fps: number, delay: number) => {
   };
 };
 
+// ── CSS programmable thermostat graphic ──────────────────────────────────────
+type ThermoDisplayProps = {
+  time: string;
+  temp: number;
+  mode: string;
+  modeColor: string;
+  frame: number;
+};
+
+const ThermoDisplay: React.FC<ThermoDisplayProps> = ({
+  time, temp, mode, modeColor, frame,
+}) => {
+  const glowPulse = Math.sin(frame * 0.12) * 0.25 + 0.75;
+  const SCREEN_W = 900;
+  const SCREEN_H = 530;
+  const rayAngles = [0, 45, 90, 135, 180, 225, 270, 315];
+
+  return (
+    <div
+      style={{
+        width: 960,
+        backgroundColor: "#111418",
+        borderRadius: 36,
+        padding: "14px 14px 14px 14px",
+        boxShadow:
+          "0 30px 80px rgba(0,0,0,0.85), 0 0 0 2px #252830, inset 0 1px 0 rgba(255,255,255,0.05)",
+        position: "relative",
+      }}
+    >
+      {/* Device top nub */}
+      <div
+        style={{
+          position: "absolute",
+          top: -2,
+          left: "50%",
+          transform: "translateX(-50%)",
+          width: 32,
+          height: 6,
+          backgroundColor: "#1E2228",
+          borderRadius: "0 0 4px 4px",
+        }}
+      />
+
+      {/* Screen */}
+      <div
+        style={{
+          width: SCREEN_W,
+          height: SCREEN_H,
+          background:
+            "linear-gradient(145deg, #3A7FA8 0%, #226088 30%, #1A506E 70%, #0F3A52 100%)",
+          borderRadius: 22,
+          overflow: "hidden",
+          position: "relative",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        {/* Screen bg radial */}
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            background:
+              "radial-gradient(ellipse 80% 60% at 30% 40%, rgba(80,160,200,0.35) 0%, transparent 70%)",
+          }}
+        />
+
+        {/* Top status bar */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            paddingInline: 28,
+            paddingBlock: 14,
+            borderBottom: "1px solid rgba(255,255,255,0.12)",
+          }}
+        >
+          <div
+            style={{
+              fontSize: 32,
+              color: "rgba(255,255,255,0.9)",
+              fontFamily: "monospace",
+              letterSpacing: 2,
+              fontWeight: 600,
+            }}
+          >
+            {time}
+          </div>
+          <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+            <div
+              style={{
+                width: 11,
+                height: 11,
+                borderRadius: "50%",
+                backgroundColor: modeColor,
+                boxShadow: `0 0 12px ${modeColor}`,
+                opacity: glowPulse,
+              }}
+            />
+            <div
+              style={{
+                fontSize: 18,
+                color: modeColor,
+                fontFamily: "monospace",
+                letterSpacing: 3,
+                fontWeight: 700,
+              }}
+            >
+              {mode}
+            </div>
+          </div>
+        </div>
+
+        {/* Main screen content */}
+        <div style={{ display: "flex", flex: 1 }}>
+          {/* Left panel: sun + menu */}
+          <div
+            style={{
+              width: 255,
+              padding: "20px 20px 16px 28px",
+              display: "flex",
+              flexDirection: "column",
+              gap: 12,
+              borderRight: "1px solid rgba(255,255,255,0.12)",
+            }}
+          >
+            {/* Sun icon */}
+            <svg width={82} height={82} viewBox="0 0 72 72">
+              <circle
+                cx={36}
+                cy={36}
+                r={16}
+                fill="none"
+                stroke="rgba(255,255,255,0.85)"
+                strokeWidth={3.5}
+              />
+              {rayAngles.map((angle) => {
+                const rad = (angle * Math.PI) / 180;
+                const x1 = 36 + 22 * Math.cos(rad);
+                const y1 = 36 + 22 * Math.sin(rad);
+                const x2 = 36 + 30 * Math.cos(rad);
+                const y2 = 36 + 30 * Math.sin(rad);
+                return (
+                  <line
+                    key={angle}
+                    x1={x1}
+                    y1={y1}
+                    x2={x2}
+                    y2={y2}
+                    stroke="rgba(255,255,255,0.75)"
+                    strokeWidth={3}
+                    strokeLinecap="round"
+                  />
+                );
+              })}
+            </svg>
+
+            {/* Menu items */}
+            {["TEMPERATURE", "WEATHER", "AIR CONDITION", "HOME"].map(
+              (item, i) => (
+                <div
+                  key={item}
+                  style={{
+                    fontSize: 17,
+                    color:
+                      i === 0
+                        ? "rgba(255,255,255,0.95)"
+                        : "rgba(255,255,255,0.55)",
+                    letterSpacing: 1.5,
+                    fontFamily: "monospace",
+                    fontWeight: i === 0 ? 700 : 400,
+                    paddingBlock: 4,
+                    borderBottom:
+                      i === 3
+                        ? "none"
+                        : "1px solid rgba(255,255,255,0.08)",
+                  }}
+                >
+                  {item}
+                </div>
+              )
+            )}
+          </div>
+
+          {/* Right panel: house + temperature */}
+          <div
+            style={{
+              flex: 1,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 20,
+              position: "relative",
+            }}
+          >
+            {/* House SVG */}
+            <div style={{ position: "relative", width: 280, height: 300 }}>
+              <svg viewBox="0 0 260 280" width={280} height={300}>
+                <polygon
+                  points="130,18 10,118 50,118"
+                  fill="none"
+                  stroke="rgba(255,255,255,0.82)"
+                  strokeWidth={5}
+                  strokeLinejoin="round"
+                />
+                <polygon
+                  points="130,18 250,118 210,118"
+                  fill="none"
+                  stroke="rgba(255,255,255,0.82)"
+                  strokeWidth={5}
+                  strokeLinejoin="round"
+                />
+                <rect
+                  x={50}
+                  y={118}
+                  width={160}
+                  height={142}
+                  fill="none"
+                  stroke="rgba(255,255,255,0.82)"
+                  strokeWidth={5}
+                />
+                <rect
+                  x={112}
+                  y={210}
+                  width={36}
+                  height={50}
+                  fill="none"
+                  stroke="rgba(255,255,255,0.55)"
+                  strokeWidth={3}
+                />
+              </svg>
+
+              {/* Temperature inside house */}
+              <div
+                style={{
+                  position: "absolute",
+                  top: "52%",
+                  left: "50%",
+                  transform: "translate(-50%, -50%)",
+                  fontSize: 90,
+                  fontWeight: 900,
+                  color: "#FFFFFF",
+                  fontFamily: "'Arial Black', Arial, sans-serif",
+                  lineHeight: 1,
+                  textShadow: `0 0 40px ${modeColor}88`,
+                }}
+              >
+                {temp}°
+              </div>
+            </div>
+
+            {/* Vertical temp scale bar */}
+            <div
+              style={{
+                width: 16,
+                height: 220,
+                backgroundColor: "rgba(255,255,255,0.12)",
+                borderRadius: 8,
+                overflow: "hidden",
+                position: "relative",
+              }}
+            >
+              <div
+                style={{
+                  position: "absolute",
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  height: `${((temp - 60) / 30) * 100}%`,
+                  backgroundColor: modeColor,
+                  borderRadius: 8,
+                  boxShadow: `0 0 12px ${modeColor}`,
+                }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom icon row */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-around",
+            alignItems: "center",
+            paddingInline: 20,
+            paddingBlock: 12,
+            borderTop: "1px solid rgba(255,255,255,0.12)",
+          }}
+        >
+          {["≡", "❄", "◉", "⌂", "⏻", "▤"].map((icon, i) => (
+            <div
+              key={i}
+              style={{
+                width: 50,
+                height: 50,
+                borderRadius: "50%",
+                backgroundColor: "rgba(255,255,255,0.08)",
+                border: "1.5px solid rgba(255,255,255,0.18)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 22,
+                color: "rgba(255,255,255,0.65)",
+              }}
+            >
+              {icon}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Device bottom power button */}
+      <div
+        style={{
+          position: "absolute",
+          bottom: 8,
+          right: 28,
+          width: 28,
+          height: 28,
+          borderRadius: "50%",
+          backgroundColor: "#1E2228",
+          border: "1.5px solid #333",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 14,
+          color: "#555",
+        }}
+      >
+        ⏻
+      </div>
+    </div>
+  );
+};
+
 // ── Scene frame ranges ──────────────────────────────────────────────────────
-// S1 Intro:          0 – 88
-// S2 Hero:          74 – 200
-// Thermostat image: 74 – 665 (visible throughout S2–S5)
-// S3 Morning Away: 184 – 358
-// S4 Pre-Arrival:  342 – 516
-// S5 Sleep:        500 – 665
-// S6 Savings:      649 – 778
-// S7 CTA:          762 – 848
+// S1 Intro:         0  – 88
+// S2 Hero:         74  – 200
+// Thermostat CSS:  74  – 665
+// S3 Morning:     184  – 358
+// S4 Pre-Arrival: 342  – 516
+// S5 Sleep:       500  – 665
+// S6 Savings:     649  – 870
+// S7 CTA:         854  – 960
 
 export const ECIThermostat: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps, width, height } = useVideoConfig();
 
-  // ── Global thermostat image opacity + subtle Ken Burns ─────────────────
+  // Thermostat graphic: visible S2–S5
   const thermoOp = sceneOp(frame, 74, 665, 18);
-  const thermoScale = interpolate(frame, [74, 665], [1.0, 1.06], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
+  const thermoSpring = spring({
+    frame: frame - 78,
+    fps,
+    config: { damping: 16, stiffness: 180 },
+    durationInFrames: 35,
   });
+  const thermoY = interpolate(thermoSpring, [0, 1], [-80, 0]);
+  const thermoScale = interpolate(thermoSpring, [0, 1], [0.92, 1.0]);
 
-  // ── Screen temperature overlay ─────────────────────────────────────────
-  // Overlaid on the house/temp area of the thermostat screen
-  const scrOvOp = sceneOp(frame, 200, 656, 16);
-
-  // Temperature shown on screen changes with each scenario
-  const scrTemp = Math.round(
+  const thermoTemp = Math.round(
     interpolate(
       frame,
-      [200, 245, 342, 406, 500, 562],
-      [78, 78, 78, 72, 72, 68],
+      [184, 240, 342, 406, 500, 562],
+      [72, 78, 78, 72, 72, 68],
       { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
     )
   );
-  const scrColor =
-    frame < 342 ? "#F59E0B" : frame < 500 ? ECI_GREEN : "#818CF8";
-  const scrLabel =
-    frame < 342 ? "AWAY MODE" : frame < 500 ? "HOME MODE" : "SLEEP MODE";
+  const thermoModeColor =
+    frame < 200
+      ? "#FFFFFF"
+      : frame < 342
+      ? "#F59E0B"
+      : frame < 500
+      ? ECI_GREEN
+      : "#818CF8";
+  const thermoMode =
+    frame < 200
+      ? "HOME"
+      : frame < 342
+      ? "AWAY"
+      : frame < 500
+      ? "HOME"
+      : "SLEEP";
+  const thermoTime =
+    frame < 220
+      ? "10:00 AM"
+      : frame < 380
+      ? "8:00 AM"
+      : frame < 540
+      ? "5:00 PM"
+      : "10:30 PM";
 
-  // ── Scene 1: Intro ──────────────────────────────────────────────────────
+  // ── Scene 1: Intro ─────────────────────────────────────────────────────
   const s1Op = sceneOp(frame, 0, 88);
   const logoSpring = spring({
     frame: frame - 8,
@@ -93,17 +444,16 @@ export const ECIThermostat: React.FC = () => {
   const s1H1 = useSlideUp(frame, fps, 26);
   const s1H2 = useSlideUp(frame, fps, 40);
 
-  // ── Scene 2: Hero ───────────────────────────────────────────────────────
+  // ── Scene 2: Hero ──────────────────────────────────────────────────────
   const s2Op = sceneOp(frame, 74, 200);
-  const s2Title = useSlideUp(frame, fps, 90);
-  const s2Sub = useSlideUp(frame, fps, 106);
+  const s2Title = useSlideUp(frame, fps, 100);
+  const s2Sub = useSlideUp(frame, fps, 116);
 
-  // ── Scene 3: Morning — leaving for work (summer) ────────────────────────
+  // ── Scene 3: Morning — leaving for work ────────────────────────────────
   const s3Op = sceneOp(frame, 184, 358);
   const s3Head = useSlideUp(frame, fps, 200);
   const s3Temp = useSlideUp(frame, fps, 218);
   const s3Desc = useSlideUp(frame, fps, 236);
-  // Temperature animates: 72° (home) → 78° (away)
   const s3TempVal = Math.round(
     interpolate(frame, [220, 248], [72, 78], {
       extrapolateLeft: "clamp",
@@ -111,12 +461,11 @@ export const ECIThermostat: React.FC = () => {
     })
   );
 
-  // ── Scene 4: Pre-arrival — AC kicks on before you're home ───────────────
+  // ── Scene 4: Pre-arrival ───────────────────────────────────────────────
   const s4Op = sceneOp(frame, 342, 516);
   const s4Head = useSlideUp(frame, fps, 358);
   const s4Temp = useSlideUp(frame, fps, 376);
   const s4Desc = useSlideUp(frame, fps, 394);
-  // Temperature animates: 78° (away) → 72° (pre-arrival)
   const s4TempVal = Math.round(
     interpolate(frame, [378, 406], [78, 72], {
       extrapolateLeft: "clamp",
@@ -124,12 +473,11 @@ export const ECIThermostat: React.FC = () => {
     })
   );
 
-  // ── Scene 5: Sleep mode ─────────────────────────────────────────────────
+  // ── Scene 5: Sleep ─────────────────────────────────────────────────────
   const s5Op = sceneOp(frame, 500, 665);
   const s5Head = useSlideUp(frame, fps, 516);
   const s5Temp = useSlideUp(frame, fps, 534);
   const s5Desc = useSlideUp(frame, fps, 552);
-  // Temperature animates: 72° → 68° (sleep)
   const s5TempVal = Math.round(
     interpolate(frame, [538, 566], [72, 68], {
       extrapolateLeft: "clamp",
@@ -137,8 +485,8 @@ export const ECIThermostat: React.FC = () => {
     })
   );
 
-  // ── Scene 6: Savings ────────────────────────────────────────────────────
-  const s6Op = sceneOp(frame, 649, 778);
+  // ── Scene 6: Savings ───────────────────────────────────────────────────
+  const s6Op = sceneOp(frame, 649, 870);
   const SAV_START = 666;
   const s6Title = useSlideUp(frame, fps, 653);
   const barFill = interpolate(frame, [SAV_START, SAV_START + 62], [0, 1], {
@@ -151,11 +499,12 @@ export const ECIThermostat: React.FC = () => {
   });
   const s6Badge = useSlideUp(frame, fps, SAV_START + 60);
   const s6Tag = useSlideUp(frame, fps, SAV_START + 75);
+  const BAR_H = 380;
 
-  // ── Scene 7: CTA ────────────────────────────────────────────────────────
-  const s7Op = sceneOp(frame, 762, 848);
+  // ── Scene 7: CTA ───────────────────────────────────────────────────────
+  const s7Op = sceneOp(frame, 854, 960);
   const s7LogoSpring = spring({
-    frame: frame - 768,
+    frame: frame - 860,
     fps,
     config: { damping: 15, stiffness: 210 },
     durationInFrames: 28,
@@ -165,12 +514,9 @@ export const ECIThermostat: React.FC = () => {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
-  const s7Cta = useSlideUp(frame, fps, 786);
-  const s7Phone = useSlideUp(frame, fps, 800);
-
-  // ── Shared helpers ───────────────────────────────────────────────────────
-  const CONTENT_TOP = THERMO_DISP_H - 60; // content card starts here
-  const BAR_H = 400;
+  const s7Cta = useSlideUp(frame, fps, 874);
+  const s7Phone = useSlideUp(frame, fps, 888);
+  const s7Sub = useSlideUp(frame, fps, 902);
 
   const sceneBase: React.CSSProperties = {
     position: "absolute",
@@ -181,7 +527,10 @@ export const ECIThermostat: React.FC = () => {
     justifyContent: "center",
   };
 
-  // Helper: scenario content card (below thermostat image)
+  const THERMO_TOP = 70;
+  const THERMO_H_EST = 610;
+  const CONTENT_TOP = THERMO_TOP + THERMO_H_EST + 24;
+
   const CardBase: React.CSSProperties = {
     position: "absolute",
     top: CONTENT_TOP,
@@ -192,7 +541,7 @@ export const ECIThermostat: React.FC = () => {
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
-    paddingInline: 60,
+    paddingInline: 50,
     gap: 22,
   };
 
@@ -207,7 +556,7 @@ export const ECIThermostat: React.FC = () => {
         fontFamily: "'Arial Black', Arial, sans-serif",
       }}
     >
-      {/* Global dark bg gradient */}
+      {/* Background glow */}
       <div
         style={{
           position: "absolute",
@@ -216,133 +565,28 @@ export const ECIThermostat: React.FC = () => {
         }}
       />
 
-      {/* ════════ THERMOSTAT IMAGE (S2–S5) ════════ */}
+      {/* ════════ CSS THERMOSTAT (S2–S5) ════════ */}
       <div
         style={{
           position: "absolute",
-          top: 0,
-          left: 0,
-          width: THERMO_DISP_W,
-          height: THERMO_DISP_H + 80,
+          top: THERMO_TOP,
+          left: (width - 960) / 2,
           opacity: thermoOp,
-          overflow: "hidden",
+          transform: `translateY(${thermoY}px) scale(${thermoScale})`,
+          transformOrigin: "top center",
         }}
       >
-        <Img
-          src={staticFile("eci_thermostat.png")}
-          style={{
-            width: THERMO_DISP_W,
-            height: THERMO_DISP_H,
-            objectFit: "cover",
-            transform: `scale(${thermoScale})`,
-            transformOrigin: "center top",
-            display: "block",
-          }}
+        <ThermoDisplay
+          time={thermoTime}
+          temp={thermoTemp}
+          mode={thermoMode}
+          modeColor={thermoModeColor}
+          frame={frame}
         />
-
-        {/* Bottom gradient: image fades into BG */}
-        <div
-          style={{
-            position: "absolute",
-            bottom: 0,
-            left: 0,
-            right: 0,
-            height: 280,
-            background: `linear-gradient(to bottom, transparent, ${BG})`,
-          }}
-        />
-
-        {/* Screen temperature overlay (on the house/temp area of the display) */}
-        {/* House icon area is approx x:510-900, y:150-490 in the 1080×829 display */}
-        <div
-          style={{
-            position: "absolute",
-            left: 510,
-            top: 150,
-            width: 400,
-            height: 360,
-            backgroundColor: "rgba(12, 38, 72, 0.88)",
-            borderRadius: 16,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            opacity: scrOvOp,
-            gap: 8,
-          }}
-        >
-          <div
-            style={{
-              fontSize: 14,
-              color: scrColor,
-              fontWeight: 700,
-              letterSpacing: 4,
-              fontFamily: "monospace",
-            }}
-          >
-            {scrLabel}
-          </div>
-          <div
-            style={{
-              fontSize: 86,
-              fontWeight: 900,
-              color: "#FFFFFF",
-              lineHeight: 1,
-              textShadow: `0 0 40px ${scrColor}88`,
-            }}
-          >
-            {scrTemp}°
-          </div>
-          <div style={{ fontSize: 16, color: "#6A8AAA", letterSpacing: 2 }}>
-            FAHRENHEIT
-          </div>
-        </div>
-
-        {/* ECI brand watermark on thermostat */}
-        <div
-          style={{
-            position: "absolute",
-            top: 18,
-            left: 18,
-            opacity: 0.9,
-          }}
-        >
-          <Img
-            src={staticFile("eci_logo.png")}
-            style={{ width: 100, height: "auto" }}
-          />
-        </div>
-
-        {/* "ECI SMART THERMOSTAT" label strip */}
-        <div
-          style={{
-            position: "absolute",
-            bottom: 90,
-            left: 0,
-            right: 0,
-            display: "flex",
-            justifyContent: "center",
-          }}
-        >
-          <div
-            style={{
-              paddingInline: 28,
-              paddingBlock: 10,
-              backgroundColor: `${ECI_GREEN}DD`,
-              borderRadius: 24,
-              fontSize: 20,
-              fontWeight: 700,
-              color: "#FFFFFF",
-              letterSpacing: "3px",
-            }}
-          >
-            ECI SMART THERMOSTAT
-          </div>
-        </div>
       </div>
 
-      {/* ════════ SCENE 1 — ECI Intro ════════ */}
-      <div style={{ ...sceneBase, opacity: s1Op, gap: 40 }}>
+      {/* ════════ SCENE 1 — Intro ════════ */}
+      <div style={{ ...sceneBase, opacity: s1Op, gap: 44 }}>
         <div
           style={{
             position: "absolute",
@@ -351,23 +595,20 @@ export const ECIThermostat: React.FC = () => {
           }}
         />
         <div style={{ opacity: s1LogoOp, transform: `scale(${s1LogoScale})` }}>
-          <Img
-            src={staticFile("eci_logo.png")}
-            style={{ width: 320, height: "auto" }}
-          />
+          <Img src={staticFile("eci_logo.png")} style={{ width: 360, height: "auto" }} />
         </div>
         <div
           style={{
             opacity: s1H1.opacity,
             transform: `translateY(${s1H1.y}px)`,
             textAlign: "center",
-            paddingInline: 70,
+            paddingInline: 60,
           }}
         >
-          <div style={{ fontSize: 58, fontWeight: 900, color: "#FFF", lineHeight: 1.1 }}>
+          <div style={{ fontSize: 72, fontWeight: 900, color: "#FFF", lineHeight: 1.1 }}>
             PROGRAMMABLE
           </div>
-          <div style={{ fontSize: 58, fontWeight: 900, color: ECI_GREEN, lineHeight: 1.1 }}>
+          <div style={{ fontSize: 72, fontWeight: 900, color: ECI_GREEN, lineHeight: 1.1 }}>
             THERMOSTATS
           </div>
         </div>
@@ -375,7 +616,7 @@ export const ECIThermostat: React.FC = () => {
           style={{
             opacity: s1H2.opacity,
             transform: `translateY(${s1H2.y}px)`,
-            fontSize: 28,
+            fontSize: 36,
             color: "#8899BB",
             fontWeight: 700,
             letterSpacing: "3px",
@@ -386,15 +627,8 @@ export const ECIThermostat: React.FC = () => {
         </div>
       </div>
 
-      {/* ════════ SCENE 2 — Thermostat Hero ════════ */}
-      <div
-        style={{
-          ...CardBase,
-          opacity: s2Op,
-          justifyContent: "flex-start",
-          paddingTop: 40,
-        }}
-      >
+      {/* ════════ SCENE 2 — Hero ════════ */}
+      <div style={{ ...CardBase, opacity: s2Op, justifyContent: "flex-start", paddingTop: 28 }}>
         <div
           style={{
             opacity: s2Title.opacity,
@@ -402,10 +636,10 @@ export const ECIThermostat: React.FC = () => {
             textAlign: "center",
           }}
         >
-          <div style={{ fontSize: 50, fontWeight: 900, color: "#FFF", lineHeight: 1.1 }}>
+          <div style={{ fontSize: 62, fontWeight: 900, color: "#FFF", lineHeight: 1.1 }}>
             YOUR HOME,
           </div>
-          <div style={{ fontSize: 50, fontWeight: 900, color: ECI_GREEN, lineHeight: 1.1 }}>
+          <div style={{ fontSize: 62, fontWeight: 900, color: ECI_GREEN, lineHeight: 1.1 }}>
             ALWAYS COMFORTABLE.
           </div>
         </div>
@@ -413,19 +647,18 @@ export const ECIThermostat: React.FC = () => {
           style={{
             opacity: s2Sub.opacity,
             transform: `translateY(${s2Sub.y}px)`,
-            fontSize: 28,
+            fontSize: 34,
             color: "#7A8899",
             textAlign: "center",
-            lineHeight: 1.55,
+            lineHeight: 1.5,
           }}
         >
-          Set your schedule once. Your ECI thermostat does the rest — automatically.
+          Set your schedule once. Your programmable thermostat does the rest — automatically.
         </div>
       </div>
 
       {/* ════════ SCENE 3 — Morning: Leaving for work ════════ */}
-      <div style={{ ...CardBase, opacity: s3Op, gap: 20 }}>
-        {/* Time + context */}
+      <div style={{ ...CardBase, opacity: s3Op }}>
         <div
           style={{
             opacity: s3Head.opacity,
@@ -433,20 +666,12 @@ export const ECIThermostat: React.FC = () => {
             textAlign: "center",
           }}
         >
-          <div
-            style={{
-              fontSize: 22,
-              color: "#8899BB",
-              letterSpacing: "4px",
-              textTransform: "uppercase",
-              marginBottom: 8,
-            }}
-          >
+          <div style={{ fontSize: 30, color: "#8899BB", letterSpacing: "4px", marginBottom: 8 }}>
             ☀️ &nbsp; SUMMER MORNING
           </div>
           <div
             style={{
-              fontSize: 58,
+              fontSize: 72,
               fontWeight: 900,
               color: "#FFFFFF",
               fontFamily: "monospace",
@@ -455,12 +680,11 @@ export const ECIThermostat: React.FC = () => {
           >
             8:00 AM
           </div>
-          <div style={{ fontSize: 24, color: "#7A8899", marginTop: 8 }}>
+          <div style={{ fontSize: 32, color: "#7A8899", marginTop: 8 }}>
             You leave for work
           </div>
         </div>
 
-        {/* Temperature */}
         <div
           style={{
             opacity: s3Temp.opacity,
@@ -470,7 +694,7 @@ export const ECIThermostat: React.FC = () => {
         >
           <div
             style={{
-              fontSize: 110,
+              fontSize: 130,
               fontWeight: 900,
               color: "#F59E0B",
               lineHeight: 1,
@@ -482,39 +706,38 @@ export const ECIThermostat: React.FC = () => {
           <div
             style={{
               display: "inline-block",
-              paddingInline: 24,
-              paddingBlock: 8,
+              paddingInline: 28,
+              paddingBlock: 10,
               backgroundColor: "#F59E0B22",
               border: "2px solid #F59E0B",
               borderRadius: 10,
-              fontSize: 20,
+              fontSize: 26,
               color: "#F59E0B",
               fontWeight: 700,
-              letterSpacing: "4px",
-              marginTop: 10,
+              letterSpacing: "3px",
+              marginTop: 12,
             }}
           >
             AWAY MODE — AC OFF
           </div>
         </div>
 
-        {/* Description */}
         <div
           style={{
             opacity: s3Desc.opacity,
             transform: `translateY(${s3Desc.y}px)`,
-            fontSize: 26,
+            fontSize: 34,
             color: "#7A8899",
             textAlign: "center",
-            lineHeight: 1.6,
+            lineHeight: 1.55,
           }}
         >
-          No need to manually adjust. Your ECI thermostat sets itself to 78° the moment you walk out the door.
+          No need to manually adjust. Your programmable thermostat sets itself to 78° the moment you walk out the door.
         </div>
       </div>
 
-      {/* ════════ SCENE 4 — Pre-arrival: AC kicks on before you're home ════════ */}
-      <div style={{ ...CardBase, opacity: s4Op, gap: 20 }}>
+      {/* ════════ SCENE 4 — Pre-arrival ════════ */}
+      <div style={{ ...CardBase, opacity: s4Op }}>
         <div
           style={{
             opacity: s4Head.opacity,
@@ -522,20 +745,12 @@ export const ECIThermostat: React.FC = () => {
             textAlign: "center",
           }}
         >
-          <div
-            style={{
-              fontSize: 22,
-              color: "#8899BB",
-              letterSpacing: "4px",
-              textTransform: "uppercase",
-              marginBottom: 8,
-            }}
-          >
+          <div style={{ fontSize: 30, color: "#8899BB", letterSpacing: "4px", marginBottom: 8 }}>
             🏡 &nbsp; PRE-ARRIVAL
           </div>
           <div
             style={{
-              fontSize: 58,
+              fontSize: 72,
               fontWeight: 900,
               color: "#FFFFFF",
               fontFamily: "monospace",
@@ -544,7 +759,7 @@ export const ECIThermostat: React.FC = () => {
           >
             5:00 PM
           </div>
-          <div style={{ fontSize: 24, color: "#7A8899", marginTop: 8 }}>
+          <div style={{ fontSize: 32, color: "#7A8899", marginTop: 8 }}>
             30 minutes before you arrive
           </div>
         </div>
@@ -558,7 +773,7 @@ export const ECIThermostat: React.FC = () => {
         >
           <div
             style={{
-              fontSize: 110,
+              fontSize: 130,
               fontWeight: 900,
               color: ECI_GREEN,
               lineHeight: 1,
@@ -570,16 +785,16 @@ export const ECIThermostat: React.FC = () => {
           <div
             style={{
               display: "inline-block",
-              paddingInline: 24,
-              paddingBlock: 8,
+              paddingInline: 28,
+              paddingBlock: 10,
               backgroundColor: `${ECI_GREEN}22`,
               border: `2px solid ${ECI_GREEN}`,
               borderRadius: 10,
-              fontSize: 20,
+              fontSize: 26,
               color: ECI_GREEN,
               fontWeight: 700,
-              letterSpacing: "4px",
-              marginTop: 10,
+              letterSpacing: "3px",
+              marginTop: 12,
             }}
           >
             HOME MODE — AC ON
@@ -590,18 +805,18 @@ export const ECIThermostat: React.FC = () => {
           style={{
             opacity: s4Desc.opacity,
             transform: `translateY(${s4Desc.y}px)`,
-            fontSize: 26,
+            fontSize: 34,
             color: "#7A8899",
             textAlign: "center",
-            lineHeight: 1.6,
+            lineHeight: 1.55,
           }}
         >
-          AC fires up automatically at 5 PM. Walk in at 5:30 to a perfectly cool 72° — without lifting a finger.
+          AC fires up at 5 PM automatically. Walk in at 5:30 to a perfectly cool 72° — without lifting a finger.
         </div>
       </div>
 
-      {/* ════════ SCENE 5 — Sleep mode ════════ */}
-      <div style={{ ...CardBase, opacity: s5Op, gap: 20 }}>
+      {/* ════════ SCENE 5 — Sleep ════════ */}
+      <div style={{ ...CardBase, opacity: s5Op }}>
         <div
           style={{
             opacity: s5Head.opacity,
@@ -609,20 +824,12 @@ export const ECIThermostat: React.FC = () => {
             textAlign: "center",
           }}
         >
-          <div
-            style={{
-              fontSize: 22,
-              color: "#8899BB",
-              letterSpacing: "4px",
-              textTransform: "uppercase",
-              marginBottom: 8,
-            }}
-          >
+          <div style={{ fontSize: 30, color: "#8899BB", letterSpacing: "4px", marginBottom: 8 }}>
             🌙 &nbsp; SLEEP MODE
           </div>
           <div
             style={{
-              fontSize: 58,
+              fontSize: 72,
               fontWeight: 900,
               color: "#FFFFFF",
               fontFamily: "monospace",
@@ -631,7 +838,7 @@ export const ECIThermostat: React.FC = () => {
           >
             10:30 PM
           </div>
-          <div style={{ fontSize: 24, color: "#7A8899", marginTop: 8 }}>
+          <div style={{ fontSize: 32, color: "#7A8899", marginTop: 8 }}>
             You head to bed
           </div>
         </div>
@@ -645,7 +852,7 @@ export const ECIThermostat: React.FC = () => {
         >
           <div
             style={{
-              fontSize: 110,
+              fontSize: 130,
               fontWeight: 900,
               color: "#818CF8",
               lineHeight: 1,
@@ -657,16 +864,16 @@ export const ECIThermostat: React.FC = () => {
           <div
             style={{
               display: "inline-block",
-              paddingInline: 24,
-              paddingBlock: 8,
+              paddingInline: 28,
+              paddingBlock: 10,
               backgroundColor: "#818CF822",
               border: "2px solid #818CF8",
               borderRadius: 10,
-              fontSize: 20,
+              fontSize: 26,
               color: "#818CF8",
               fontWeight: 700,
-              letterSpacing: "4px",
-              marginTop: 10,
+              letterSpacing: "3px",
+              marginTop: 12,
             }}
           >
             SLEEP MODE
@@ -677,18 +884,18 @@ export const ECIThermostat: React.FC = () => {
           style={{
             opacity: s5Desc.opacity,
             transform: `translateY(${s5Desc.y}px)`,
-            fontSize: 26,
+            fontSize: 34,
             color: "#7A8899",
             textAlign: "center",
-            lineHeight: 1.6,
+            lineHeight: 1.55,
           }}
         >
-          Cools down to 68° automatically for better sleep — then warms back up before your alarm.
+          Cools to 68° for better sleep — then warms back up before your alarm.
         </div>
       </div>
 
       {/* ════════ SCENE 6 — Savings ════════ */}
-      <div style={{ ...sceneBase, opacity: s6Op, gap: 32 }}>
+      <div style={{ ...sceneBase, opacity: s6Op, gap: 28 }}>
         <div
           style={{
             opacity: s6Title.opacity,
@@ -696,15 +903,12 @@ export const ECIThermostat: React.FC = () => {
             textAlign: "center",
           }}
         >
-          <div style={{ fontSize: 34, color: "#8899BB", fontWeight: 700, letterSpacing: "2px" }}>
-            ADD IT ALL UP AND
-          </div>
-          <div style={{ fontSize: 38, color: "#8899BB", fontWeight: 700, letterSpacing: "2px" }}>
-            SAVE UP TO
+          <div style={{ fontSize: 40, color: "#8899BB", fontWeight: 700, letterSpacing: "2px" }}>
+            ADD IT ALL UP AND SAVE UP TO
           </div>
           <div
             style={{
-              fontSize: 148,
+              fontSize: 172,
               fontWeight: 900,
               color: ECI_GREEN,
               lineHeight: 1,
@@ -713,26 +917,19 @@ export const ECIThermostat: React.FC = () => {
           >
             {Math.round(pctCount)}%
           </div>
-          <div
-            style={{
-              fontSize: 30,
-              color: "#FFFFFF",
-              fontWeight: 700,
-              letterSpacing: "4px",
-            }}
-          >
+          <div style={{ fontSize: 40, color: "#FFFFFF", fontWeight: 700, letterSpacing: "4px" }}>
             ANNUALLY
           </div>
         </div>
 
         {/* Green fill bar */}
-        <div style={{ width: 860 }}>
+        <div style={{ width: 900 }}>
           <div
             style={{
               width: "100%",
-              height: 26,
+              height: 30,
               backgroundColor: "#1A2030",
-              borderRadius: 13,
+              borderRadius: 15,
               overflow: "hidden",
             }}
           >
@@ -741,75 +938,61 @@ export const ECIThermostat: React.FC = () => {
                 width: `${barFill * 100}%`,
                 height: "100%",
                 backgroundColor: ECI_GREEN,
-                borderRadius: 13,
+                borderRadius: 15,
                 boxShadow: `0 0 24px ${ECI_GREEN}88`,
               }}
             />
           </div>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginTop: 10,
-            }}
-          >
-            <div style={{ fontSize: 18, color: "#3A4A60" }}>0%</div>
-            <div style={{ fontSize: 18, color: ECI_GREEN, fontWeight: 700 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 10 }}>
+            <div style={{ fontSize: 22, color: "#3A4A60" }}>0%</div>
+            <div style={{ fontSize: 22, color: ECI_GREEN, fontWeight: 700 }}>
               10% annual savings
             </div>
           </div>
         </div>
 
-        {/* Bar chart comparison */}
+        {/* Bar chart */}
         <div style={{ display: "flex", gap: 60, alignItems: "flex-end" }}>
-          <div
-            style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}
-          >
-            <div style={{ fontSize: 18, color: "#667788" }}>Without</div>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+            <div style={{ fontSize: 24, color: "#667788" }}>Without</div>
             <div
               style={{
-                width: 120,
+                width: 140,
                 height: barFill * BAR_H,
                 backgroundColor: "#404858",
                 borderRadius: "8px 8px 0 0",
               }}
             />
-            <div style={{ fontSize: 20, color: "#667788", fontWeight: 700 }}>
-              $2,000/yr
-            </div>
+            <div style={{ fontSize: 28, color: "#667788", fontWeight: 700 }}>$2,000/yr</div>
           </div>
-          <div
-            style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}
-          >
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
             <div
               style={{
-                fontSize: 16,
+                fontSize: 22,
                 color: ECI_GREEN,
                 fontWeight: 700,
                 backgroundColor: `${ECI_GREEN}22`,
                 border: `1.5px solid ${ECI_GREEN}`,
                 borderRadius: 8,
-                paddingInline: 12,
-                paddingBlock: 5,
+                paddingInline: 14,
+                paddingBlock: 6,
                 opacity: barFill,
                 letterSpacing: 1,
               }}
             >
               $200 SAVED
             </div>
-            <div style={{ fontSize: 18, color: ECI_GREEN }}>With ECI</div>
+            <div style={{ fontSize: 24, color: ECI_GREEN }}>With Programmable</div>
             <div
               style={{
-                width: 120,
+                width: 140,
                 height: barFill * BAR_H * 0.9,
                 backgroundColor: ECI_GREEN,
                 borderRadius: "8px 8px 0 0",
                 boxShadow: `0 0 30px ${ECI_GREEN}55`,
               }}
             />
-            <div style={{ fontSize: 20, color: ECI_GREEN, fontWeight: 700 }}>
-              $1,800/yr
-            </div>
+            <div style={{ fontSize: 28, color: ECI_GREEN, fontWeight: 700 }}>$1,800/yr</div>
           </div>
         </div>
 
@@ -817,12 +1000,12 @@ export const ECIThermostat: React.FC = () => {
           style={{
             opacity: s6Badge.opacity,
             transform: `translateY(${s6Badge.y}px)`,
-            paddingInline: 36,
-            paddingBlock: 18,
+            paddingInline: 40,
+            paddingBlock: 20,
             backgroundColor: `${ECI_GREEN}18`,
             border: `2px solid ${ECI_GREEN}`,
             borderRadius: 18,
-            fontSize: 24,
+            fontSize: 30,
             color: ECI_GREEN,
             fontWeight: 700,
             textAlign: "center",
@@ -835,7 +1018,7 @@ export const ECIThermostat: React.FC = () => {
           style={{
             opacity: s6Tag.opacity,
             transform: `translateY(${s6Tag.y}px)`,
-            fontSize: 22,
+            fontSize: 28,
             color: "#55667A",
             textAlign: "center",
           }}
@@ -845,7 +1028,7 @@ export const ECIThermostat: React.FC = () => {
       </div>
 
       {/* ════════ SCENE 7 — CTA ════════ */}
-      <div style={{ ...sceneBase, opacity: s7Op, gap: 36 }}>
+      <div style={{ ...sceneBase, opacity: s7Op, gap: 40 }}>
         <div
           style={{
             position: "absolute",
@@ -854,10 +1037,7 @@ export const ECIThermostat: React.FC = () => {
           }}
         />
         <div style={{ opacity: s7LogoOp, transform: `scale(${s7LogoScale})` }}>
-          <Img
-            src={staticFile("eci_logo.png")}
-            style={{ width: 280, height: "auto" }}
-          />
+          <Img src={staticFile("eci_logo.png")} style={{ width: 340, height: "auto" }} />
         </div>
         <div
           style={{
@@ -866,34 +1046,29 @@ export const ECIThermostat: React.FC = () => {
             textAlign: "center",
           }}
         >
-          <div style={{ fontSize: 56, fontWeight: 900, color: "#FFF", lineHeight: 1.1 }}>
+          <div style={{ fontSize: 76, fontWeight: 900, color: "#FFF", lineHeight: 1.1 }}>
             CALL US TODAY
           </div>
           <div
             style={{
-              fontSize: 34,
+              fontSize: 46,
               color: ECI_GREEN,
               fontWeight: 700,
               letterSpacing: "2px",
-              marginTop: 8,
+              marginTop: 10,
             }}
           >
             TO START SAVING!
           </div>
         </div>
-        <div
-          style={{
-            opacity: s7Phone.opacity,
-            transform: `translateY(${s7Phone.y}px)`,
-          }}
-        >
+        <div style={{ opacity: s7Phone.opacity, transform: `translateY(${s7Phone.y}px)` }}>
           <div
             style={{
-              paddingInline: 56,
-              paddingBlock: 26,
+              paddingInline: 52,
+              paddingBlock: 30,
               backgroundColor: ECI_GREEN,
               borderRadius: 26,
-              fontSize: 56,
+              fontSize: 68,
               fontWeight: 900,
               color: "#FFFFFF",
               letterSpacing: "2px",
@@ -905,14 +1080,16 @@ export const ECIThermostat: React.FC = () => {
         </div>
         <div
           style={{
-            opacity: s7Phone.opacity,
-            fontSize: 22,
+            opacity: s7Sub.opacity,
+            transform: `translateY(${s7Sub.y}px)`,
+            fontSize: 32,
             color: ECI_ORANGE,
             fontWeight: 700,
             letterSpacing: "1px",
+            textAlign: "center",
           }}
         >
-          Ask about our programmable thermostat installation
+          Ask about programmable thermostat installation
         </div>
       </div>
     </div>
