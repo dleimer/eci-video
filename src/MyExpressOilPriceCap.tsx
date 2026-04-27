@@ -171,6 +171,7 @@ export const MyExpressOilPriceCap: React.FC = () => {
   });
   const s6Line1 = useSlideUp(frame, fps, 686);
   const s6Line2 = useSlideUp(frame, fps, 700);
+  const s6Phone = useSlideUp(frame, fps, 714);
 
   const sceneBase: React.CSSProperties = {
     position: "absolute",
@@ -767,6 +768,26 @@ export const MyExpressOilPriceCap: React.FC = () => {
             }}
           >
             myexpressoil.com
+          </div>
+        </div>
+
+        <div
+          style={{
+            opacity: s6Phone.opacity,
+            transform: `translateY(${s6Phone.y}px)`,
+            textAlign: "center",
+          }}
+        >
+          <div
+            style={{
+              fontSize: 54,
+              fontWeight: 900,
+              color: "#FFFFFF",
+              letterSpacing: "2px",
+              textShadow: `0 0 40px ${FLAME_GREEN}66`,
+            }}
+          >
+            215-245-3200
           </div>
         </div>
       </div>
