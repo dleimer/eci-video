@@ -5,10 +5,19 @@ import { ECIFeedPost } from "./ECIFeedPost";
 import { ECIReel } from "./ECIReel";
 import { ECIThermostat } from "./ECIThermostat";
 import { ECIConcertSeries } from "./ECIConcertSeries";
+import { MyExpressOilPriceCap } from "./MyExpressOilPriceCap";
 
 export const RemotionRoot: React.FC = () => {
   return (
     <>
+      <Composition
+        id="MyExpressOilPriceCap"
+        component={MyExpressOilPriceCap}
+        durationInFrames={750}
+        fps={30}
+        width={1080}
+        height={1080}
+      />
       <Composition
         id="ECIConcertSeries"
         component={ECIConcertSeries}
